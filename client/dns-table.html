@@ -1,0 +1,31 @@
+<template name="dnsTable">
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>source</th>
+          <th>requested domain</th>
+          <th>responder</th>
+          <th>reply</th>
+          <th>timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each dnsLogs}}
+        {{> dnsLog}}
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<template name="dnsLog">
+  <tr class="{{styles}}">
+    <td>{{from}}</td>
+    <td>{{request}}</td>
+    <td>{{determineResponder}}</td>
+    <td>{{reply}}</td>
+    <td>{{timestamp}}</td>
+  </tr>
+</template>
+
