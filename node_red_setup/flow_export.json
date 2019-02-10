@@ -1,0 +1,149 @@
+[
+    {
+        "id": "1307f825.4426d8",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "49d7613e.cb54d",
+        "type": "tail",
+        "z": "1307f825.4426d8",
+        "name": "tail dns logs",
+        "filetype": "text",
+        "split": false,
+        "filename": "/var/log/pihole.log",
+        "x": 200,
+        "y": 246,
+        "wires": [
+            [
+                "c059b3c4.6ddd8"
+            ]
+        ]
+    },
+    {
+        "id": "84cb2243.46ac3",
+        "type": "exec",
+        "z": "1307f825.4426d8",
+        "command": "/bin/bash /home/zolson/node_scripts/format_dns_log.sh",
+        "addpay": true,
+        "append": "",
+        "useSpawn": "false",
+        "timer": "",
+        "oldrc": false,
+        "name": "reverse lookup hostname",
+        "x": 812,
+        "y": 612.5,
+        "wires": [
+            [
+                "e808a997.9ba2a8"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "6523fda9.d09974",
+        "type": "debug",
+        "z": "1307f825.4426d8",
+        "name": "pre-format",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "x": 1246,
+        "y": 359,
+        "wires": []
+    },
+    {
+        "id": "c059b3c4.6ddd8",
+        "type": "function",
+        "z": "1307f825.4426d8",
+        "name": "format dns logs",
+        "func": "var fullRegex = /(\\w+ +\\d+ +\\d+:\\d+:\\d+) +\\w+\\[\\d+\\]: (.*)/;\nvar match = fullRegex.exec(msg.payload);\nmsg.timestamp = match[1];\nvar payload = match[2];\nvar payloadRegex = /(.[^\\s]+) +(.[^\\s]+) +(.[^\\s]+) +(.*)/;\nvar payloadMatch = payloadRegex.exec(payload);\nmsg.payload = {};\nvar action = payloadMatch[1];\nvar target = payloadMatch[2];\nvar direction = payloadMatch[3];\nvar ip = payloadMatch[4];\nvar runningQuery = flow.get(target);\nif (/query/.test(action)) {\n    flow.set(target, { \"request\": target, \"from\": ip });\n} else if (action == \"cached\" || action == \"reply\") {\n    if (ip != \"<CNAME>\") {\n        if (runningQuery !== undefined && runningQuery !== {}) {\n            runningQuery[action] = ip;\n            msg.payload = runningQuery;\n            flow.set(target, {});\n            node.send(msg);\n        }\n    }\n} else if (action == \"forwarded\") {\n    runningQuery[action] = ip;\n    flow.set(target, runningQuery);\n} else {\n    if (runningQuery !== undefined && runningQuery !== {}) {\n        runningQuery[\"responder\"] = action;\n        runningQuery[\"reply\"] = ip;\n        msg.payload = runningQuery;\n        flow.set(target, {});\n        node.send(msg);\n    }  \n}\n\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 472,
+        "y": 243,
+        "wires": [
+            [
+                "22319157.eb920e"
+            ]
+        ]
+    },
+    {
+        "id": "22319157.eb920e",
+        "type": "json",
+        "z": "1307f825.4426d8",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 628,
+        "y": 338,
+        "wires": [
+            [
+                "61ff8af0.372b74"
+            ]
+        ]
+    },
+    {
+        "id": "d693a7aa.fac048",
+        "type": "mongodb out",
+        "z": "1307f825.4426d8",
+        "mongodb": "f34df5c7.21e908",
+        "name": "net-server mongo save",
+        "collection": "dnslogs",
+        "payonly": true,
+        "upsert": false,
+        "multi": false,
+        "operation": "store",
+        "x": 1264,
+        "y": 566,
+        "wires": []
+    },
+    {
+        "id": "61ff8af0.372b74",
+        "type": "function",
+        "z": "1307f825.4426d8",
+        "name": "filter extra responses",
+        "func": "if (/request/.test(msg.payload)) {\n    return msg;\n} else {\n    return null;\n}",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 733,
+        "y": 481,
+        "wires": [
+            [
+                "84cb2243.46ac3"
+            ]
+        ]
+    },
+    {
+        "id": "e808a997.9ba2a8",
+        "type": "function",
+        "z": "1307f825.4426d8",
+        "name": "reformat json",
+        "func": "var json = msg.payload;\nmsg.payload = JSON.parse(\"{\" + json.split(\":\").join(\"\\\":\\\"\").split(\",\").join(\"\\\",\\\"\").split(/\\{|\\}/).join(\"\\\"\") + \"}\");\nmsg.payload.timestamp = msg.timestamp;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 1036,
+        "y": 514,
+        "wires": [
+            [
+                "d693a7aa.fac048",
+                "6523fda9.d09974"
+            ]
+        ]
+    },
+    {
+        "id": "f34df5c7.21e908",
+        "type": "mongodb",
+        "z": "",
+        "hostname": "127.0.0.1",
+        "port": "3001",
+        "db": "meteor",
+        "name": "net-server dns logs mongo"
+    }
+]
