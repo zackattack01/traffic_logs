@@ -19,7 +19,12 @@ h1 {
 }
 
 .cached {
-	background-color: #27ef42 !important;
+	background-color: #0032f5 !important;
+	color: whitesmoke;
+}
+
+.forwarded {
+	background-color: #c5c54c !important;
 }
 /*
  * Sidebar
